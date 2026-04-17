@@ -1,97 +1,35 @@
-// background.js — service worker
-// Manages context menu items and handles tab opening.
+// background.js — Service Worker
+// Responsibilities:
+//   - Listen for hotkey command → inject content script if needed, then trigger popup
+// Context menu is no longer used.
 
 importScripts("databases.js");
 
-// ── Context menu setup ────────────────────────────────────────────────────────
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "open-togoid") return;
 
-// We rebuild context menu items every time the selection changes.
-// The content script sends us the selected text via a message.
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab) return;
 
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.contextMenus.create({
-    id: "togoid-root",
-    title: "TogoID Open",
-    contexts: ["selection"]
-  });
-});
+  // chrome:// and other restricted URLs cannot have content scripts injected
+  if (!tab.url || !tab.url.startsWith("http")) return;
 
-// Listen for selection change messages from content script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "selection-changed") {
-    rebuildContextMenu(message.text);
-  }
-  if (message.type === "open-url") {
-    chrome.tabs.create({ url: message.url });
-  }
-});
-
-// Rebuild context menu children based on current selection
-function rebuildContextMenu(selectedText) {
-  // Remove all children of root first
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: "togoid-root",
-      title: "TogoID Open",
-      contexts: ["selection"]
+  // Try sending a message; if the content script is already loaded it will respond.
+  // If not, inject it first, then send.
+  try {
+    await chrome.tabs.sendMessage(tab.id, { type: "show-popup" });
+  } catch (_e) {
+    // Content script not yet present → inject programmatically, then send
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      files: ["databases.js", "content.js"]
     });
-
-    if (!selectedText || !selectedText.trim()) return;
-
-    const candidates = getCandidates(selectedText.trim());
-
-    if (candidates.length === 0) {
-      chrome.contextMenus.create({
-        id: "togoid-none",
-        parentId: "togoid-root",
-        title: "(No matching database)",
-        contexts: ["selection"],
-        enabled: false
-      });
-      return;
+    // Small delay to let the scripts initialize
+    await new Promise(r => setTimeout(r, 80));
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "show-popup" });
+    } catch (e2) {
+      console.error("TogoID: could not send message after injection", e2);
     }
-
-    candidates.forEach((c, i) => {
-      // Label: if db has only one prefix → show db.label only
-      //        if db has multiple prefixes → show "db.label (prefix.label)"
-      const needsQualifier = c.db.prefix.length > 1;
-      const itemLabel = needsQualifier
-        ? `${c.db.label} (${c.prefix.label})`
-        : c.db.label;
-
-      const url = c.prefix.uri + selectedText.trim();
-
-      chrome.contextMenus.create({
-        id: `togoid-item-${i}`,
-        parentId: "togoid-root",
-        title: itemLabel,
-        contexts: ["selection"]
-      });
-
-      // Store mapping: item id → url (use session storage via a global map)
-      _menuUrlMap[`togoid-item-${i}`] = url;
-    });
-  });
-}
-
-// Map from context menu item id → URL to open
-const _menuUrlMap = {};
-
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  const url = _menuUrlMap[info.menuItemId];
-  if (url) {
-    chrome.tabs.create({ url });
-  }
-});
-
-// ── Hotkey ────────────────────────────────────────────────────────────────────
-
-chrome.commands.onCommand.addListener((command) => {
-  if (command === "open-togoid") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: "show-popup" });
-      }
-    });
   }
 });

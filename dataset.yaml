@@ -1,0 +1,24 @@
+chembl_compound:
+  label: ChEMBL compound
+  regex: '^(CHEMBL\d+)$'
+  prefix:
+    - label: rdf
+      uri: 'http://identifiers.org/chembl.compound/'
+
+chembl_target:
+  label: ChEMBL target
+  regex: '^(CHEMBL\d+)$'
+  prefix:
+    - label: rdf
+      uri: 'http://identifiers.org/chembl.target/'
+
+pdb:
+  label: PDB
+  regex: '^([0-9][A-Za-z0-9]{3})$'
+  prefix:
+    - label: PDBj
+      uri: 'https://pdbj.org/mine/summary/'
+    - label: RCSB PDB
+      uri: 'https://www.rcsb.org/structure/'
+    - label: PDBe
+      uri: 'https://www.ebi.ac.uk/pdbe/entry/pdb/'
