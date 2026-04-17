@@ -1,9 +1,8 @@
 // databases.js
-// Loads dataset.yaml + customDbs from storage, applies disabled flags,
-// and exposes getCandidates(text).
-// Runs in both Service Worker and content script contexts.
+// Loads dataset.yaml + customDbs from storage, applies disabled flags.
+// URL generation uses named capture groups (?<id>, ?<id1>, ?<id2>, ...) from regex.
 
-// ── Minimal YAML parser ───────────────────────────────────────────────────────
+// ── YAML parser ───────────────────────────────────────────────────────────────
 
 function parseDatasetYaml(src) {
   const lines = src.split("\n");
@@ -48,7 +47,23 @@ function unquote(s) {
     ? s.slice(1, -1) : s;
 }
 
-// ── Default DB loading (from dataset.yaml) ────────────────────────────────────
+// ── Extract the ID portion from a regex match ─────────────────────────────────
+// Named groups tried in order: id, id1, id2, id3, ...
+// Falls back to the full match (group 1, or entire match) if no named group found.
+
+function extractId(match) {
+  const groups = match.groups || {};
+  // Try ?<id> first, then ?<id1>, ?<id2>, ...
+  if (groups.id !== undefined) return groups.id;
+  for (let i = 1; i <= 9; i++) {
+    const k = `id${i}`;
+    if (groups[k] !== undefined) return groups[k];
+  }
+  // Fallback: first capture group, or full match
+  return match[1] !== undefined ? match[1] : match[0];
+}
+
+// ── DB loading ────────────────────────────────────────────────────────────────
 
 let _defaultDbs = null;
 
@@ -68,7 +83,9 @@ async function loadDatabases() {
   return _defaultDbs;
 }
 
-// ── getCandidates: merges default + custom, applies disabled flags ─────────────
+// ── getCandidates ─────────────────────────────────────────────────────────────
+// Returns [{db, prefix, resolvedId}]
+// resolvedId = the portion captured by named group, used to build the URL.
 
 async function getCandidates(text) {
   const trimmed = text.trim();
@@ -77,26 +94,23 @@ async function getCandidates(text) {
     chrome.storage.sync.get(["disabled", "customDbs"])
   ]);
 
-  const disabled   = storage.disabled   || {};
-  const customDbs  = storage.customDbs  || [];
+  const disabled  = storage.disabled  || {};
+  const customDbs = storage.customDbs || [];
 
   const allDbs = [
     ...defaultDbs,
-    ...customDbs.map(d => ({
-      ...d,
-      regex: new RegExp(d.regexStr),
-      isCustom: true
-    }))
+    ...customDbs.map(d => ({ ...d, regex: new RegExp(d.regexStr), isCustom: true }))
   ];
 
   const results = [];
   for (const db of allDbs) {
-    if (disabled[db.key]) continue;          // entire DB disabled
-    if (!db.regex.test(trimmed)) continue;
+    if (disabled[db.key]) continue;
+    const match = trimmed.match(db.regex);
+    if (!match) continue;
+    const resolvedId = extractId(match);
     for (const prefix of db.prefix) {
-      const prefixKey = `${db.key}__${prefix.label}`;
-      if (disabled[prefixKey]) continue;     // this prefix disabled
-      results.push({ db, prefix });
+      if (disabled[`${db.key}__${prefix.label}`]) continue;
+      results.push({ db, prefix, resolvedId });
     }
   }
   return results;
