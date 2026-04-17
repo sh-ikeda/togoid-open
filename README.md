@@ -1,39 +1,52 @@
 # TogoID Open — Chrome Extension
 
-生命科学データベースの ID をページ上で選択し、対応するレコードページを直接開く Chrome 拡張機能です。
+> 日本語版: [README.ja.md](README.ja.md)
 
-## インストール
+A Chrome extension that opens life science database record pages by selecting an ID on any webpage.
 
-1. Chrome で `chrome://extensions/` を開く
-2. 右上の「デベロッパーモード」をオン
-3. 「パッケージ化されていない拡張機能を読み込む」→ `togoid-open/` フォルダを選択
+## Installation
 
-## 使い方
+1. Open `chrome://extensions/` in Chrome
+2. Enable **Developer mode** (top right)
+3. Click **Load unpacked** and select the `togoid-open/` folder
 
-### ホットキー（`Alt+Shift+O`）
+## Usage
 
-1. ページ上で ID テキストを選択する（例: `CHEMBL121649`、`GO:0005643`）
-2. `Alt+Shift+O` を押す
-3. 選択テキストの近くにポップアップが表示される
-   - 候補が 1 件のみ：クリックで即オープン
-   - 候補が複数あるデータベース：`▶ DB名 (N)` をクリックして展開 → prefix を選択
-4. `Esc` またはポップアップ外クリックで閉じる
+### Hotkey: `Alt+Shift+O`
 
-ホットキーは設定画面から変更できます（`chrome://extensions/shortcuts`）。
+**When text is selected on the page:**
+1. Select an ID (e.g. `CHEMBL121649`, `GO:0005643`, `3PFQ`)
+2. Press `Alt+Shift+O`
+3. A popup appears near the selection
+   - Single candidate → click to open directly
+   - Multiple prefixes for a DB → click `▶ DB name (N)` to expand, then choose
 
-## ID と URL の対応
+**When no text is selected:**
+1. Press `Alt+Shift+O`
+2. A database browser popup appears
+3. Type to search for a database, then click it
+4. Example IDs are listed with **Copy** and **Open URL** buttons
+   - Multiple ID series → accordion; click the header to expand
+   - If a DB has multiple URL prefixes, a chooser appears on **Open URL**
 
-- 正規表現の名前付きキャプチャグループ `(?<id>...)` が指定されている場合、マッチした ID 部分のみを URL に使用します
-- `(?<id1>...)` / `(?<id2>...)` のように複数ある場合は、最初に値のあるグループを使用します
-- 名前付きグループがない場合は、最初のキャプチャグループまたは全マッチを使用します
+Press `Esc` or click outside to dismiss any popup.
 
-例:
-- `GO:0005643` → `(?<id>\d{7})` → ID = `0005643` → `http://purl.obolibrary.org/obo/GO_0005643`
-- `3PFQ` → `([0-9][A-Za-z0-9]{3})` → ID = `3PFQ` → `https://pdbj.org/mine/summary/3PFQ`
+### Hotkey configuration
+Go to `chrome://extensions/shortcuts` to change the hotkey.
 
-## データベース定義ファイル
+## ID → URL resolution
 
-`dataset.yaml` にデータベース定義が記述されています。このファイルはデフォルト設定として維持されます。ユーザーのカスタマイズは `chrome.storage.sync` に別途保存されます。
+Named capture groups in the regex determine what gets appended to the URI prefix:
+
+| Pattern | Example input | Resolved ID |
+|---------|--------------|-------------|
+| `(?<id>\d{7})` | `GO:0005643` | `0005643` |
+| `(?<id1>…)\|(?<id2>…)` | `P12345` | first matching group |
+| `([0-9][A-Za-z0-9]{3})` | `3PFQ` | `3PFQ` (group 1) |
+
+## Adding databases
+
+Edit `dataset.yaml` to add default databases. User customisations are stored separately in `chrome.storage.sync` and merged at runtime — the default file is never modified.
 
 ```yaml
 chebi:
@@ -42,33 +55,32 @@ chebi:
   prefix:
     - label: EBI
       uri: 'https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:'
+  examples:
+    - ["CHEBI:15422","CHEBI:17234","CHEBI:16541"]
 ```
 
-## オプション設定画面
+## Options page
 
-拡張機能アイコンを右クリック → 「オプション」から開けます。
+Right-click the extension icon → **Options**.
 
-### データベースタブ
+| Feature | Description |
+|---------|-------------|
+| Database list | Collapsible; search by name or key |
+| Enable/disable | Checkbox per DB and per prefix |
+| Add prefix | `＋ prefix` button on each default DB card |
+| Add database | Form at the bottom of the Databases tab |
+| Edit / Delete | Available on custom DB cards |
+| Language | EN / JA toggle in the sidebar |
+| Hotkey | Link to `chrome://extensions/shortcuts` |
 
-- **一覧の表示/非表示**：「データベース一覧を表示」をクリックして折り畳みを開閉
-- **検索・絞り込み**：検索窓に文字を入力するとデータベース名・キーで絞り込み
-- **有効/無効の切り替え**：DB 単位またはプレフィックス単位でチェックボックスをオフ
-- **prefix の追加**：デフォルト DB の「＋ prefix」ボタンから、URI とラベルを入力して追加
-- **新規 DB の追加**：画面下部のフォームからキー・表示名・正規表現・prefix を入力して追加
-- **編集**：カスタム DB の「編集」ボタンから表示名・正規表現・prefix を変更
-- **削除**：カスタム DB の「削除」ボタンで削除
+## File structure
 
-### ホットキータブ
-
-`chrome://extensions/shortcuts` へのリンクを提供します。
-
-## ファイル構成
-
-| ファイル | 役割 |
-|---|---|
-| `manifest.json` | 拡張機能の設定（権限・ホットキー・オプションページ） |
-| `dataset.yaml` | デフォルトのデータベース定義 |
-| `databases.js` | YAML 読み込み・名前付きキャプチャ対応の URL 生成・候補絞り込み |
-| `background.js` | Service Worker。ホットキー受信・content script 注入 |
-| `content.js` | ポップアップ UI の描画・選択位置近傍への配置 |
-| `options.html/css/js` | オプション設定画面 |
+| File | Role |
+|------|------|
+| `manifest.json` | Extension config (permissions, hotkey, options page) |
+| `dataset.yaml` | Default database definitions |
+| `databases.js` | YAML loader, named-capture URL resolution, candidate filtering |
+| `background.js` | Service worker: hotkey dispatch, content script injection |
+| `content.js` | Open popup & browser popup UI |
+| `options.html/css/js` | Options page |
+| `i18n.js` | EN/JA string table for the options page |

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>TogoID Open — 設定</title>
+  <title>TogoID Open — Settings</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -13,57 +13,61 @@
         TogoID Open
       </div>
       <ul>
-        <li class="nav-item active" data-tab="databases">データベース</li>
-        <li class="nav-item" data-tab="hotkey">ホットキー</li>
+        <li class="nav-item active" data-tab="databases" data-i18n="navDatabases">Databases</li>
+        <li class="nav-item" data-tab="hotkey" data-i18n="navHotkey">Hotkey</li>
       </ul>
+      <div class="lang-switcher">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <span class="lang-sep">|</span>
+        <button class="lang-btn" data-lang="ja">JA</button>
+      </div>
     </nav>
     <main class="content">
 
       <!-- ── Databases tab ── -->
       <section id="tab-databases" class="tab active">
-        <h2>データベース設定</h2>
-        <p class="hint">チェックを外すと、そのデータベース／プレフィックスはポップアップの候補から除外されます。</p>
+        <h2 data-i18n="dbTabTitle">Database Settings</h2>
+        <p class="hint" data-i18n="dbTabHint">Uncheck to exclude a database or prefix from popup candidates.</p>
 
-        <!-- Collapsible DB list -->
         <div id="db-list">
           <div class="db-section-toggle" id="db-toggle">
             <span class="db-section-arrow" id="db-toggle-arrow">▶</span>
-            <span id="db-toggle-label">データベース一覧を表示</span>
+            <span id="db-toggle-label" data-i18n="dbToggleShow">Show database list</span>
           </div>
           <div id="db-list-inner" style="display:none">
             <div class="search-bar">
-              <input type="text" id="db-search" placeholder="データベース名・キーで絞り込み…">
+              <input type="text" id="db-search" data-i18n-ph="searchPlaceholder">
               <span class="search-count" id="search-count"></span>
             </div>
-            <div id="db-cards"><!-- populated by JS --></div>
+            <div id="db-cards"></div>
           </div>
         </div>
 
         <div class="section-divider"></div>
-        <h3>新規データベースを追加</h3>
+        <h3 data-i18n="addDbTitle">Add New Database</h3>
         <div class="add-form" id="add-form">
           <div class="form-row">
-            <label>キー（英数字・アンダースコア）</label>
-            <input type="text" id="new-key" placeholder="my_database">
+            <label data-i18n="fieldKey">Key (alphanumeric / underscore)</label>
+            <input type="text" id="new-key" data-i18n-ph="phKey">
           </div>
           <div class="form-row">
-            <label>表示名</label>
-            <input type="text" id="new-label" placeholder="My Database">
+            <label data-i18n="fieldLabel">Display name</label>
+            <input type="text" id="new-label" data-i18n-ph="phLabel">
           </div>
           <div class="form-row">
-            <label>正規表現（ID パターン）</label>
-            <input type="text" id="new-regex" placeholder="^(?&lt;id&gt;PREFIX\d+)$">
+            <label data-i18n="fieldRegex">Regex (ID pattern)</label>
+            <input type="text" id="new-regex" data-i18n-ph="phRegex">
           </div>
           <div id="new-prefixes">
             <div class="prefix-row-input">
-              <input type="text" class="pi-label" placeholder="ラベル（例: main）">
-              <input type="text" class="pi-uri" placeholder="URI プレフィックス">
-              <button class="btn-icon remove-prefix" title="削除">×</button>
+              <input type="text" class="pi-label" data-i18n-ph="phPiLabel">
+              <input type="text" class="pi-uri"   data-i18n-ph="phPiUri">
+              <button class="btn-icon remove-prefix">×</button>
             </div>
           </div>
-          <button class="btn-secondary" id="btn-add-prefix-row">＋ prefix を追加</button>
+          <button class="btn-secondary" id="btn-add-prefix-row" data-i18n="btnAddPrefixRow">＋ Add prefix</button>
           <div class="form-actions">
-            <button class="btn-primary" id="btn-add-db">追加</button>
+            <button class="btn-primary" id="btn-add-db" data-i18n="btnAddDb">Add</button>
             <span id="add-error" class="error-msg"></span>
           </div>
         </div>
@@ -71,48 +75,44 @@
 
       <!-- ── Hotkey tab ── -->
       <section id="tab-hotkey" class="tab">
-        <h2>ホットキー設定</h2>
-        <p>Chrome の拡張機能ショートカット設定画面からホットキーを変更できます。</p>
-        <p class="hint">現在のデフォルト: <code>Alt+Shift+O</code></p>
+        <h2 data-i18n="hotkeyTabTitle">Hotkey Settings</h2>
+        <p data-i18n="hotkeyDesc">You can change the hotkey in Chrome's extension shortcuts settings.</p>
+        <p class="hint"><span data-i18n="hotkeyDefault">Current default:</span> <code>Alt+Shift+O</code></p>
         <br>
-        <a href="#" id="open-shortcuts" class="btn-primary inline-btn">
-          ショートカット設定を開く
-        </a>
-        <p class="hint" style="margin-top:12px;">
-          ※ chrome://extensions/shortcuts が新しいタブで開きます。<br>
-          「TogoID Open」→「open-togoid」のキーを変更してください。
-        </p>
+        <a href="#" id="open-shortcuts" class="btn-primary inline-btn" data-i18n="btnOpenShortcuts">Open Shortcut Settings</a>
+        <p class="hint" style="margin-top:12px;" data-i18n="hotkeyNote"></p>
       </section>
 
     </main>
   </div>
 
-  <!-- Edit modal (shared) -->
+  <!-- Edit modal -->
   <div class="modal-overlay" id="edit-modal" style="display:none">
     <div class="modal">
-      <h3 id="modal-title">データベースを編集</h3>
+      <h3 id="modal-title">Edit</h3>
       <div class="form-row">
-        <label>表示名</label>
+        <label data-i18n="fieldLabel">Display name</label>
         <input type="text" id="modal-label">
       </div>
       <div class="form-row">
-        <label>正規表現</label>
+        <label data-i18n="fieldRegex">Regex</label>
         <input type="text" id="modal-regex">
       </div>
       <div class="form-row">
-        <label>プレフィックス</label>
+        <label>Prefix</label>
         <div class="modal-prefix-list" id="modal-prefix-list"></div>
-        <button class="btn-secondary" id="modal-add-prefix-row">＋ prefix を追加</button>
+        <button class="btn-secondary" id="modal-add-prefix-row" data-i18n="modalAddPrefix">＋ Add prefix</button>
       </div>
       <div class="modal-actions">
-        <button class="btn-ghost" id="modal-cancel">キャンセル</button>
-        <button class="btn-primary" id="modal-save">保存</button>
+        <button class="btn-ghost"    id="modal-cancel" data-i18n="modalCancel">Cancel</button>
+        <button class="btn-primary"  id="modal-save"   data-i18n="modalSave">Save</button>
       </div>
       <div><span id="modal-error" class="error-msg"></span></div>
     </div>
   </div>
 
   <script src="databases.js"></script>
+  <script src="i18n.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
