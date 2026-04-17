@@ -12,64 +12,76 @@ if (!window.__togoIdLoaded) {
 async function showPopup() {
   removePopup();
 
-  const selectedText = window.getSelection()?.toString()?.trim() ?? "";
+  const selection = window.getSelection();
+  const selectedText = selection?.toString()?.trim() ?? "";
 
-  // getCandidates returns [{db, prefix, resolvedId}]
+  // Get selection bounding rect for positioning
+  let anchorRect = null;
+  if (selection && selection.rangeCount > 0) {
+    anchorRect = selection.getRangeAt(0).getBoundingClientRect();
+  }
+
   const flat = await getCandidates(selectedText);
 
-  // Group by db.key: Map<key, {db, items:[{prefix, resolvedId}]}>
+  // Group by db.key
   const grouped = new Map();
   for (const c of flat) {
     if (!grouped.has(c.db.key)) grouped.set(c.db.key, { db: c.db, items: [] });
     grouped.get(c.db.key).items.push({ prefix: c.prefix, resolvedId: c.resolvedId });
   }
 
-  // ── DOM ──────────────────────────────────────────────────────────────────
+  // ── Build DOM ─────────────────────────────────────────────────────────────
 
   const popup = el("div", {
     id: "togoid-popup",
     style: css({
-      position: "fixed", zIndex: "2147483647",
-      top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+      position: "fixed",
+      zIndex: "2147483647",
       background: "#fff",
       border: "1.5px solid #1ab3c8",
       borderRadius: "8px",
-      boxShadow: "0 4px 28px rgba(0,0,0,0.22)",
+      boxShadow: "0 4px 20px rgba(26,179,200,0.18), 0 2px 8px rgba(0,0,0,0.10)",
       fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-      fontSize: "14px", width: "380px", overflow: "hidden", color: "#1a1a1a",
-      display: "flex", flexDirection: "column",
+      fontSize: "14px",
+      width: "380px",
+      overflow: "hidden",
+      color: "#1a1a1a",
+      display: "flex",
+      flexDirection: "column",
+      // top/left set after measuring below
+      top: "-9999px", left: "-9999px",
     })
   });
 
   // Header
   const header = el("div", {
     style: css({
-      background: "#0d1117",
-      color: "#e0f7fa",
-      padding: "10px 14px",
+      background: "#e0f7fa",
+      borderBottom: "1px solid #b2ebf2",
+      padding: "9px 14px",
       display: "flex", alignItems: "center", gap: "10px",
       flexShrink: "0"
     })
   });
-
   const titleSpan = el("span", {
-    style: css({ fontWeight: "700", fontSize: "13px", letterSpacing: "0.06em", color: "#1ab3c8" }),
+    style: css({ fontWeight: "700", fontSize: "13px", letterSpacing: "0.05em", color: "#00838f" }),
     textContent: "TogoID Open"
   });
   const idBadge = el("span", {
     style: css({
       fontSize: "12px",
-      background: "rgba(26,179,200,0.18)",
-      color: "#80deea",
-      padding: "2px 8px", borderRadius: "4px", fontFamily: "monospace",
+      background: "#fff",
+      color: "#00697a",
+      border: "1px solid #80deea",
+      padding: "1px 8px", borderRadius: "4px", fontFamily: "monospace",
       flex: "1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
     }),
     textContent: selectedText || "(no selection)"
   });
   const closeBtn = el("button", {
     style: css({
-      background: "none", border: "none", color: "#80deea",
-      fontSize: "20px", cursor: "pointer", padding: "0", lineHeight: "1", opacity: "0.8"
+      background: "none", border: "none", color: "#00838f",
+      fontSize: "20px", cursor: "pointer", padding: "0", lineHeight: "1"
     }),
     textContent: "×"
   });
@@ -89,14 +101,10 @@ async function showPopup() {
   } else {
     for (const [, { db, items }] of grouped) {
       if (items.length === 1) {
-        // Single prefix → clicking DB name opens directly
         const { prefix, resolvedId } = items[0];
-        const url = prefix.uri + resolvedId;
-        body.appendChild(dbRow(db.label, url, false));
+        body.appendChild(dbRow(db.label, prefix.uri + resolvedId, false));
       } else {
-        // Multiple prefixes → accordion
         const section = el("div");
-
         const dbBtn = el("div", {
           style: css({
             display: "flex", alignItems: "center",
@@ -110,7 +118,7 @@ async function showPopup() {
         const dbLabel = el("span", { style: css({ flex: "1" }), textContent: db.label });
         const countBadge = el("span", {
           style: css({
-            fontSize: "11px", color: "#0e8fa0", background: "#e0f7fa",
+            fontSize: "11px", color: "#00838f", background: "#e0f7fa",
             padding: "1px 6px", borderRadius: "10px"
           }),
           textContent: `${items.length}`
@@ -121,8 +129,7 @@ async function showPopup() {
 
         const subList = el("div", { style: css({ display: "none" }) });
         for (const { prefix, resolvedId } of items) {
-          const url = prefix.uri + resolvedId;
-          subList.appendChild(dbRow(prefix.label, url, true));
+          subList.appendChild(dbRow(prefix.label, prefix.uri + resolvedId, true));
         }
 
         let open = false;
@@ -140,10 +147,9 @@ async function showPopup() {
 
   popup.appendChild(body);
 
-  // Footer
   const footer = el("div", {
     style: css({
-      padding: "6px 14px", fontSize: "11px", color: "#aaa",
+      padding: "5px 14px", fontSize: "11px", color: "#aaa",
       borderTop: "1px solid #e0f7fa", textAlign: "right", flexShrink: "0"
     }),
     textContent: "Esc または外側クリックで閉じる"
@@ -151,6 +157,38 @@ async function showPopup() {
   popup.appendChild(footer);
 
   document.body.appendChild(popup);
+
+  // ── Position near selection ───────────────────────────────────────────────
+  // Measure popup size after it's in the DOM (but off-screen)
+  const pw = popup.offsetWidth;
+  const ph = popup.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const MARGIN = 8;
+
+  let top, left;
+
+  if (anchorRect && anchorRect.width > 0) {
+    // Prefer: just below the selection, left-aligned to selection start
+    top  = anchorRect.bottom + MARGIN;
+    left = anchorRect.left;
+
+    // Flip above if it would go off the bottom
+    if (top + ph > vh - MARGIN) top = anchorRect.top - ph - MARGIN;
+
+    // Clamp horizontally
+    left = Math.max(MARGIN, Math.min(left, vw - pw - MARGIN));
+    // Clamp vertically (fallback: center)
+    if (top < MARGIN) top = Math.max(MARGIN, (vh - ph) / 2);
+  } else {
+    // No selection rect → center
+    top  = (vh - ph) / 2;
+    left = (vw - pw) / 2;
+  }
+
+  popup.style.top  = `${top}px`;
+  popup.style.left = `${left}px`;
+
   setTimeout(() => {
     document.addEventListener("keydown", onEscKey);
     document.addEventListener("mousedown", onOutsideClick);
@@ -188,7 +226,7 @@ function dbRow(label, url, isIndented) {
 }
 
 function msgEl(text) {
-  return el("div", { style: css({ padding: "12px 14px", color: "#666" }), textContent: text });
+  return el("div", { style: css({ padding: "12px 14px", color: "#888" }), textContent: text });
 }
 
 function el(tag, props = {}) {

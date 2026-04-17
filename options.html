@@ -8,7 +8,10 @@
 <body>
   <div class="layout">
     <nav class="sidebar">
-      <div class="logo">TogoID Open</div>
+      <div class="logo">
+        <img src="icons/icon48.png" alt="">
+        TogoID Open
+      </div>
       <ul>
         <li class="nav-item active" data-tab="databases">データベース</li>
         <li class="nav-item" data-tab="hotkey">ホットキー</li>
@@ -19,12 +22,25 @@
       <!-- ── Databases tab ── -->
       <section id="tab-databases" class="tab active">
         <h2>データベース設定</h2>
-        <p class="hint">チェックを外したデータベース・プレフィックスはポップアップの候補から除外されます。</p>
+        <p class="hint">チェックを外すと、そのデータベース／プレフィックスはポップアップの候補から除外されます。</p>
 
-        <div id="db-list"><!-- populated by JS --></div>
+        <!-- Collapsible DB list -->
+        <div id="db-list">
+          <div class="db-section-toggle" id="db-toggle">
+            <span class="db-section-arrow" id="db-toggle-arrow">▶</span>
+            <span id="db-toggle-label">データベース一覧を表示</span>
+          </div>
+          <div id="db-list-inner" style="display:none">
+            <div class="search-bar">
+              <input type="text" id="db-search" placeholder="データベース名・キーで絞り込み…">
+              <span class="search-count" id="search-count"></span>
+            </div>
+            <div id="db-cards"><!-- populated by JS --></div>
+          </div>
+        </div>
 
         <div class="section-divider"></div>
-        <h3>データベースを追加</h3>
+        <h3>新規データベースを追加</h3>
         <div class="add-form" id="add-form">
           <div class="form-row">
             <label>キー（英数字・アンダースコア）</label>
@@ -36,12 +52,12 @@
           </div>
           <div class="form-row">
             <label>正規表現（ID パターン）</label>
-            <input type="text" id="new-regex" placeholder="^(PREFIX\d+)$">
+            <input type="text" id="new-regex" placeholder="^(?&lt;id&gt;PREFIX\d+)$">
           </div>
           <div id="new-prefixes">
             <div class="prefix-row-input">
-              <input type="text" class="pi-label" placeholder="ラベル（例: rdf）">
-              <input type="text" class="pi-uri" placeholder="URI プレフィックス（例: https://example.com/）">
+              <input type="text" class="pi-label" placeholder="ラベル（例: main）">
+              <input type="text" class="pi-uri" placeholder="URI プレフィックス">
               <button class="btn-icon remove-prefix" title="削除">×</button>
             </div>
           </div>
@@ -58,17 +74,44 @@
         <h2>ホットキー設定</h2>
         <p>Chrome の拡張機能ショートカット設定画面からホットキーを変更できます。</p>
         <p class="hint">現在のデフォルト: <code>Alt+Shift+O</code></p>
+        <br>
         <a href="#" id="open-shortcuts" class="btn-primary inline-btn">
-          ショートカット設定を開く（chrome://extensions/shortcuts）
+          ショートカット設定を開く
         </a>
         <p class="hint" style="margin-top:12px;">
-          ※ リンクをクリックするとショートカット設定ページが新しいタブで開きます。<br>
-          「TogoID Open」の項目で「open-togoid」のキーを変更してください。
+          ※ chrome://extensions/shortcuts が新しいタブで開きます。<br>
+          「TogoID Open」→「open-togoid」のキーを変更してください。
         </p>
       </section>
 
     </main>
   </div>
+
+  <!-- Edit modal (shared) -->
+  <div class="modal-overlay" id="edit-modal" style="display:none">
+    <div class="modal">
+      <h3 id="modal-title">データベースを編集</h3>
+      <div class="form-row">
+        <label>表示名</label>
+        <input type="text" id="modal-label">
+      </div>
+      <div class="form-row">
+        <label>正規表現</label>
+        <input type="text" id="modal-regex">
+      </div>
+      <div class="form-row">
+        <label>プレフィックス</label>
+        <div class="modal-prefix-list" id="modal-prefix-list"></div>
+        <button class="btn-secondary" id="modal-add-prefix-row">＋ prefix を追加</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-ghost" id="modal-cancel">キャンセル</button>
+        <button class="btn-primary" id="modal-save">保存</button>
+      </div>
+      <div><span id="modal-error" class="error-msg"></span></div>
+    </div>
+  </div>
+
   <script src="databases.js"></script>
   <script src="options.js"></script>
 </body>

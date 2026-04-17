@@ -1,54 +1,74 @@
 # TogoID Open — Chrome Extension
 
-生命科学データベースの ID を選択して、対応するレコードページを直接開くための Chrome 拡張機能です。
+生命科学データベースの ID をページ上で選択し、対応するレコードページを直接開く Chrome 拡張機能です。
 
-## インストール方法
+## インストール
 
 1. Chrome で `chrome://extensions/` を開く
-2. 右上の「デベロッパーモード」をオンにする
-3. 「パッケージ化されていない拡張機能を読み込む」をクリック
-4. このフォルダ (`togoid-open/`) を選択する
+2. 右上の「デベロッパーモード」をオン
+3. 「パッケージ化されていない拡張機能を読み込む」→ `togoid-open/` フォルダを選択
 
 ## 使い方
 
-### 右クリックメニュー
-1. ページ上で ID テキストを選択する（例: `CHEMBL121649`）
-2. 右クリック → **TogoID Open** サブメニューから開きたいデータベースを選ぶ
-3. 新しいタブでレコードページが開く
+### ホットキー（`Alt+Shift+O`）
 
-### ホットキー（Alt+Shift+O）
-1. ID テキストを選択する
+1. ページ上で ID テキストを選択する（例: `CHEMBL121649`、`GO:0005643`）
 2. `Alt+Shift+O` を押す
-3. ページ中央にポップアップが表示されるので、候補をクリックする
-4. `Esc` またはポップアップ外をクリックで閉じる
+3. 選択テキストの近くにポップアップが表示される
+   - 候補が 1 件のみ：クリックで即オープン
+   - 候補が複数あるデータベース：`▶ DB名 (N)` をクリックして展開 → prefix を選択
+4. `Esc` またはポップアップ外クリックで閉じる
 
-## 対応データベース（現在）
+ホットキーは設定画面から変更できます（`chrome://extensions/shortcuts`）。
 
-| データベース | ID パターン例 | URL |
-|---|---|---|
-| ChEMBL compound | `CHEMBL121649` | http://identifiers.org/chembl.compound/ |
-| ChEMBL target | `CHEMBL121649` | http://identifiers.org/chembl.target/ |
-| PDB (PDBj) | `3PFQ` | https://pdbj.org/mine/summary/ |
-| PDB (RCSB PDB) | `3PFQ` | https://www.rcsb.org/structure/ |
-| PDB (PDBe) | `3PFQ` | https://www.ebi.ac.uk/pdbe/entry/pdb/ |
+## ID と URL の対応
 
-## データベースの追加・変更
+- 正規表現の名前付きキャプチャグループ `(?<id>...)` が指定されている場合、マッチした ID 部分のみを URL に使用します
+- `(?<id1>...)` / `(?<id2>...)` のように複数ある場合は、最初に値のあるグループを使用します
+- 名前付きグループがない場合は、最初のキャプチャグループまたは全マッチを使用します
 
-`databases.js` の `DATABASES` 配列に以下の形式でエントリを追加するだけです：
+例:
+- `GO:0005643` → `(?<id>\d{7})` → ID = `0005643` → `http://purl.obolibrary.org/obo/GO_0005643`
+- `3PFQ` → `([0-9][A-Za-z0-9]{3})` → ID = `3PFQ` → `https://pdbj.org/mine/summary/3PFQ`
 
-```js
-{
-  key: "chebi",
-  label: "ChEBI",
-  regex: /^(CHEBI:\d+)$/,
-  prefix: [
-    { label: "EBI", uri: "https://www.ebi.ac.uk/chebi/searchId.do?chebiId=" }
-  ]
-}
+## データベース定義ファイル
+
+`dataset.yaml` にデータベース定義が記述されています。このファイルはデフォルト設定として維持されます。ユーザーのカスタマイズは `chrome.storage.sync` に別途保存されます。
+
+```yaml
+chebi:
+  label: ChEBI
+  regex: '^CHEBI:(?<id>\d+)$'
+  prefix:
+    - label: EBI
+      uri: 'https://www.ebi.ac.uk/chebi/searchId.do?chebiId=CHEBI:'
 ```
 
-YAML ファイルと同期する場合は、YAML → JS の変換スクリプトを別途用意することを推奨します。
+## オプション設定画面
 
-## ホットキーの変更
+拡張機能アイコンを右クリック → 「オプション」から開けます。
 
-Chrome の `chrome://extensions/shortcuts` でいつでも変更できます。
+### データベースタブ
+
+- **一覧の表示/非表示**：「データベース一覧を表示」をクリックして折り畳みを開閉
+- **検索・絞り込み**：検索窓に文字を入力するとデータベース名・キーで絞り込み
+- **有効/無効の切り替え**：DB 単位またはプレフィックス単位でチェックボックスをオフ
+- **prefix の追加**：デフォルト DB の「＋ prefix」ボタンから、URI とラベルを入力して追加
+- **新規 DB の追加**：画面下部のフォームからキー・表示名・正規表現・prefix を入力して追加
+- **編集**：カスタム DB の「編集」ボタンから表示名・正規表現・prefix を変更
+- **削除**：カスタム DB の「削除」ボタンで削除
+
+### ホットキータブ
+
+`chrome://extensions/shortcuts` へのリンクを提供します。
+
+## ファイル構成
+
+| ファイル | 役割 |
+|---|---|
+| `manifest.json` | 拡張機能の設定（権限・ホットキー・オプションページ） |
+| `dataset.yaml` | デフォルトのデータベース定義 |
+| `databases.js` | YAML 読み込み・名前付きキャプチャ対応の URL 生成・候補絞り込み |
+| `background.js` | Service Worker。ホットキー受信・content script 注入 |
+| `content.js` | ポップアップ UI の描画・選択位置近傍への配置 |
+| `options.html/css/js` | オプション設定画面 |
