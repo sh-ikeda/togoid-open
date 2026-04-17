@@ -1,108 +1,102 @@
 // databases.js
-// Loads dataset.yaml at runtime and exposes getCandidates(text).
-// Compatible with both Service Worker (background.js) and content script contexts.
+// Loads dataset.yaml + customDbs from storage, applies disabled flags,
+// and exposes getCandidates(text).
+// Runs in both Service Worker and content script contexts.
 
-// ── Minimal YAML parser (subset sufficient for dataset.yaml) ─────────────────
+// ── Minimal YAML parser ───────────────────────────────────────────────────────
 
 function parseDatasetYaml(src) {
   const lines = src.split("\n");
   const result = {};
-  let currentTopKey = null;
-  let currentListKey = null;
-  let currentListItem = null;
+  let topKey = null, listKey = null, listItem = null;
 
-  for (let raw of lines) {
+  for (const raw of lines) {
     const line = raw.trimEnd();
     if (!line || line.trimStart().startsWith("#")) continue;
-
     const indent = line.length - line.trimStart().length;
     const content = line.trimStart();
 
-    // List item "  - key: value"
     if (content.startsWith("- ")) {
-      if (currentListItem && currentListKey && currentTopKey) {
-        result[currentTopKey][currentListKey].push(currentListItem);
-      }
-      currentListItem = {};
-      const rest = content.slice(2);
-      const ci = rest.indexOf(":");
-      if (ci !== -1) {
-        currentListItem[rest.slice(0, ci).trim()] = unquote(rest.slice(ci + 1).trim());
-      }
+      if (listItem && listKey && topKey) result[topKey][listKey].push(listItem);
+      listItem = {};
+      const rest = content.slice(2), ci = rest.indexOf(":");
+      if (ci !== -1) listItem[rest.slice(0, ci).trim()] = unquote(rest.slice(ci + 1).trim());
       continue;
     }
-
     const ci = content.indexOf(":");
     if (ci === -1) continue;
     const key = content.slice(0, ci).trim();
     const value = unquote(content.slice(ci + 1).trim());
 
     if (indent === 0) {
-      if (currentListItem && currentListKey && currentTopKey) {
-        result[currentTopKey][currentListKey].push(currentListItem);
-        currentListItem = null; currentListKey = null;
-      }
-      currentTopKey = key;
-      result[currentTopKey] = {};
+      if (listItem && listKey && topKey) { result[topKey][listKey].push(listItem); listItem = null; listKey = null; }
+      topKey = key; result[topKey] = {};
     } else if (indent === 2) {
-      if (currentListItem && currentListKey && currentTopKey) {
-        result[currentTopKey][currentListKey].push(currentListItem);
-        currentListItem = null;
-      }
-      if (value === "") {
-        result[currentTopKey][key] = [];
-        currentListKey = key;
-      } else {
-        result[currentTopKey][key] = value;
-        currentListKey = null;
-      }
-    } else if (indent >= 4 && currentListItem !== null) {
-      // continuation key inside a list item
-      currentListItem[key] = value;
+      if (listItem && listKey && topKey) { result[topKey][listKey].push(listItem); listItem = null; }
+      if (value === "") { result[topKey][key] = []; listKey = key; }
+      else { result[topKey][key] = value; listKey = null; }
+    } else if (indent >= 4 && listItem !== null) {
+      listItem[key] = value;
     }
   }
-  if (currentListItem && currentListKey && currentTopKey) {
-    result[currentTopKey][currentListKey].push(currentListItem);
-  }
+  if (listItem && listKey && topKey) result[topKey][listKey].push(listItem);
   return result;
 }
 
 function unquote(s) {
-  if ((s.startsWith("'") && s.endsWith("'")) ||
-      (s.startsWith('"') && s.endsWith('"'))) {
-    return s.slice(1, -1);
-  }
-  return s;
+  return (s.startsWith("'") && s.endsWith("'")) || (s.startsWith('"') && s.endsWith('"'))
+    ? s.slice(1, -1) : s;
 }
 
-// ── Database loading ──────────────────────────────────────────────────────────
+// ── Default DB loading (from dataset.yaml) ────────────────────────────────────
 
-let _databases = null;
+let _defaultDbs = null;
 
 async function loadDatabases() {
-  if (_databases) return _databases;
+  if (_defaultDbs) return _defaultDbs;
   const url = chrome.runtime.getURL("dataset.yaml");
-  const res = await fetch(url);
-  const text = await res.text();
+  const text = await fetch(url).then(r => r.text());
   const parsed = parseDatasetYaml(text);
-  _databases = Object.entries(parsed).map(([key, entry]) => ({
+  _defaultDbs = Object.entries(parsed).map(([key, entry]) => ({
     key,
     label: entry.label,
     regex: new RegExp(entry.regex),
-    prefix: Array.isArray(entry.prefix) ? entry.prefix : []
+    regexStr: entry.regex,
+    prefix: Array.isArray(entry.prefix) ? entry.prefix : [],
+    isCustom: false
   }));
-  return _databases;
+  return _defaultDbs;
 }
 
+// ── getCandidates: merges default + custom, applies disabled flags ─────────────
+
 async function getCandidates(text) {
-  const dbs = await loadDatabases();
   const trimmed = text.trim();
+  const [defaultDbs, storage] = await Promise.all([
+    loadDatabases(),
+    chrome.storage.sync.get(["disabled", "customDbs"])
+  ]);
+
+  const disabled   = storage.disabled   || {};
+  const customDbs  = storage.customDbs  || [];
+
+  const allDbs = [
+    ...defaultDbs,
+    ...customDbs.map(d => ({
+      ...d,
+      regex: new RegExp(d.regexStr),
+      isCustom: true
+    }))
+  ];
+
   const results = [];
-  for (const db of dbs) {
-    if (db.regex.test(trimmed)) {
-      for (const prefix of db.prefix) {
-        results.push({ db, prefix });
-      }
+  for (const db of allDbs) {
+    if (disabled[db.key]) continue;          // entire DB disabled
+    if (!db.regex.test(trimmed)) continue;
+    for (const prefix of db.prefix) {
+      const prefixKey = `${db.key}__${prefix.label}`;
+      if (disabled[prefixKey]) continue;     // this prefix disabled
+      results.push({ db, prefix });
     }
   }
   return results;

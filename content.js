@@ -1,14 +1,10 @@
 // content.js — injected into pages
-// Shows the TogoID popup when triggered by hotkey (via background.js message).
 
-// Guard against double-injection
 if (!window.__togoIdLoaded) {
   window.__togoIdLoaded = true;
 
   chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === "show-popup") {
-      showPopup();
-    }
+    if (message.type === "show-popup") showPopup();
   });
 }
 
@@ -18,128 +14,134 @@ async function showPopup() {
   removePopup();
 
   const selectedText = window.getSelection()?.toString()?.trim() ?? "";
-  const candidates = await getCandidates(selectedText);
 
-  const popup = document.createElement("div");
-  popup.id = "togoid-popup";
-  Object.assign(popup.style, {
-    position: "fixed",
-    zIndex: "2147483647",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    background: "#ffffff",
-    border: "1.5px solid #cccccc",
-    borderRadius: "8px",
-    boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    fontSize: "14px",
-    minWidth: "300px",
-    maxWidth: "480px",
-    padding: "0",
-    overflow: "hidden",
-    color: "#1a1a1a"
+  // getCandidates returns [{db, prefix}] — group by db
+  const flat = await getCandidates(selectedText);
+
+  // Build grouped structure: Map<dbKey, {db, prefixes:[]}>
+  const grouped = new Map();
+  for (const c of flat) {
+    if (!grouped.has(c.db.key)) grouped.set(c.db.key, { db: c.db, prefixes: [] });
+    grouped.get(c.db.key).prefixes.push(c.prefix);
+  }
+
+  // ── DOM ──────────────────────────────────────────────────────────────────
+
+  const popup = el("div", {
+    id: "togoid-popup",
+    style: css({
+      position: "fixed", zIndex: "2147483647",
+      top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+      background: "#fff", border: "1.5px solid #ccc", borderRadius: "8px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
+      fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      fontSize: "14px", width: "360px", overflow: "hidden", color: "#1a1a1a",
+      display: "flex", flexDirection: "column",
+      // max-height set below after measuring viewport
+    })
   });
 
   // Header
-  const header = document.createElement("div");
-  Object.assign(header.style, {
-    background: "#1a5276",
-    color: "#ffffff",
-    padding: "10px 14px",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px"
+  const header = el("div", {
+    style: css({
+      background: "#1a5276", color: "#fff",
+      padding: "10px 14px", display: "flex", alignItems: "center", gap: "10px",
+      flexShrink: "0"
+    })
   });
-
-  const title = document.createElement("span");
-  Object.assign(title.style, { fontWeight: "600", fontSize: "13px", letterSpacing: "0.03em" });
-  title.textContent = "TogoID Open";
-
-  const idLabel = document.createElement("span");
-  Object.assign(idLabel.style, {
-    fontSize: "12px",
-    background: "rgba(255,255,255,0.15)",
-    padding: "2px 8px",
-    borderRadius: "4px",
-    fontFamily: "monospace",
-    flex: "1",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap"
+  const titleSpan = el("span", {
+    style: css({ fontWeight: "600", fontSize: "13px", letterSpacing: "0.03em" }),
+    textContent: "TogoID Open"
   });
-  idLabel.textContent = selectedText || "(no selection)";
-
-  const closeBtn = document.createElement("button");
-  Object.assign(closeBtn.style, {
-    background: "none", border: "none", color: "#fff",
-    fontSize: "18px", cursor: "pointer", padding: "0", lineHeight: "1", opacity: "0.8"
+  const idBadge = el("span", {
+    style: css({
+      fontSize: "12px", background: "rgba(255,255,255,0.15)",
+      padding: "2px 8px", borderRadius: "4px", fontFamily: "monospace",
+      flex: "1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+    }),
+    textContent: selectedText || "(no selection)"
   });
-  closeBtn.textContent = "×";
+  const closeBtn = el("button", {
+    style: css({
+      background: "none", border: "none", color: "#fff",
+      fontSize: "20px", cursor: "pointer", padding: "0", lineHeight: "1", opacity: "0.8"
+    }),
+    textContent: "×"
+  });
   closeBtn.addEventListener("click", removePopup);
-
-  header.appendChild(title);
-  header.appendChild(idLabel);
-  header.appendChild(closeBtn);
+  header.append(titleSpan, idBadge, closeBtn);
   popup.appendChild(header);
 
-  // Body
-  const body = document.createElement("div");
-  body.style.padding = "8px 0";
+  // Scrollable body
+  const body = el("div", {
+    style: css({ overflowY: "auto", maxHeight: "60vh", padding: "6px 0" })
+  });
 
   if (!selectedText) {
-    body.appendChild(makeMessage("テキストが選択されていません。"));
-  } else if (candidates.length === 0) {
-    body.appendChild(makeMessage(`"${selectedText}" に一致するデータベースが見つかりませんでした。`));
+    body.appendChild(msgEl("テキストが選択されていません。"));
+  } else if (grouped.size === 0) {
+    body.appendChild(msgEl(`"${selectedText}" に一致するデータベースが見つかりませんでした。`));
   } else {
-    for (const c of candidates) {
-      const needsQualifier = c.db.prefix.length > 1;
-      const itemLabel = needsQualifier ? `${c.db.label} (${c.prefix.label})` : c.db.label;
-      const url = c.prefix.uri + selectedText;
+    for (const [, { db, prefixes }] of grouped) {
+      if (prefixes.length === 1) {
+        // Single prefix → clicking DB name opens directly
+        const url = prefixes[0].uri + selectedText;
+        body.appendChild(dbRow(db.label, url, false));
+      } else {
+        // Multiple prefixes → accordion
+        const section = el("div");
 
-      const row = document.createElement("div");
-      Object.assign(row.style, {
-        display: "flex", alignItems: "center",
-        padding: "8px 14px", cursor: "pointer", gap: "8px"
-      });
-      row.addEventListener("mouseover", () => { row.style.background = "#eaf2fb"; });
-      row.addEventListener("mouseout",  () => { row.style.background = ""; });
-      row.addEventListener("click", () => {
-        window.open(url, "_blank", "noopener");
-        removePopup();
-      });
+        const dbBtn = el("div", {
+          style: css({
+            display: "flex", alignItems: "center", padding: "8px 14px",
+            cursor: "pointer", gap: "8px", userSelect: "none"
+          })
+        });
+        const arrow = el("span", {
+          style: css({ fontSize: "11px", opacity: "0.5", transition: "transform 0.15s", flexShrink: "0" }),
+          textContent: "▶"
+        });
+        const dbLabel = el("span", { style: css({ flex: "1" }), textContent: db.label });
+        const countBadge = el("span", {
+          style: css({
+            fontSize: "11px", color: "#888", background: "#f0f0f0",
+            padding: "1px 6px", borderRadius: "10px"
+          }),
+          textContent: `${prefixes.length}`
+        });
+        dbBtn.append(arrow, dbLabel, countBadge);
+        dbBtn.addEventListener("mouseover", () => { dbBtn.style.background = "#f5f5f5"; });
+        dbBtn.addEventListener("mouseout",  () => { dbBtn.style.background = ""; });
 
-      const icon = document.createElement("span");
-      Object.assign(icon.style, { fontSize: "13px", opacity: "0.5", flexShrink: "0" });
-      icon.textContent = "↗";
+        const subList = el("div", { style: css({ display: "none" }) });
+        for (const prefix of prefixes) {
+          const url = prefix.uri + selectedText;
+          subList.appendChild(prefixRow(prefix.label, url));
+        }
 
-      const labelEl = document.createElement("span");
-      labelEl.style.flex = "1";
-      labelEl.textContent = itemLabel;
+        let open = false;
+        dbBtn.addEventListener("click", () => {
+          open = !open;
+          arrow.style.transform = open ? "rotate(90deg)" : "";
+          subList.style.display = open ? "block" : "none";
+        });
 
-      const urlEl = document.createElement("span");
-      Object.assign(urlEl.style, {
-        fontSize: "11px", color: "#888", fontFamily: "monospace",
-        maxWidth: "180px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
-      });
-      urlEl.textContent = url;
-
-      row.appendChild(icon);
-      row.appendChild(labelEl);
-      row.appendChild(urlEl);
-      body.appendChild(row);
+        section.append(dbBtn, subList);
+        body.appendChild(section);
+      }
     }
   }
 
   popup.appendChild(body);
 
   // Footer
-  const footer = document.createElement("div");
-  Object.assign(footer.style, {
-    padding: "6px 14px", fontSize: "11px", color: "#aaa",
-    borderTop: "1px solid #eee", textAlign: "right"
+  const footer = el("div", {
+    style: css({
+      padding: "6px 14px", fontSize: "11px", color: "#aaa",
+      borderTop: "1px solid #eee", textAlign: "right", flexShrink: "0"
+    }),
+    textContent: "Esc または外側クリックで閉じる"
   });
-  footer.textContent = "Esc または外側クリックで閉じる";
   popup.appendChild(footer);
 
   document.body.appendChild(popup);
@@ -150,22 +152,64 @@ async function showPopup() {
   }, 0);
 }
 
-function makeMessage(text) {
-  const el = document.createElement("div");
-  Object.assign(el.style, { padding: "12px 14px", color: "#666" });
-  el.textContent = text;
-  return el;
+// ── Row builders ──────────────────────────────────────────────────────────────
+
+function dbRow(label, url, isIndented) {
+  const row = el("div", {
+    style: css({
+      display: "flex", alignItems: "center",
+      padding: isIndented ? "7px 14px 7px 36px" : "8px 14px",
+      cursor: "pointer", gap: "8px"
+    })
+  });
+  row.addEventListener("mouseover", () => { row.style.background = "#eaf2fb"; });
+  row.addEventListener("mouseout",  () => { row.style.background = ""; });
+  row.addEventListener("click", () => { window.open(url, "_blank", "noopener"); removePopup(); });
+
+  const icon = el("span", { style: css({ fontSize: "12px", opacity: "0.4", flexShrink: "0" }), textContent: "↗" });
+  const labelEl = el("span", { style: css({ flex: "1" }), textContent: label });
+  const urlEl = el("span", {
+    style: css({
+      fontSize: "11px", color: "#aaa", fontFamily: "monospace",
+      maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap"
+    }),
+    textContent: url
+  });
+  row.append(icon, labelEl, urlEl);
+  return row;
 }
 
-function onEscKey(e) {
-  if (e.key === "Escape") removePopup();
+function prefixRow(label, url) {
+  return dbRow(label, url, true);
 }
 
+function msgEl(text) {
+  return el("div", { style: css({ padding: "12px 14px", color: "#666" }), textContent: text });
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function el(tag, props = {}) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === "style") node.setAttribute("style", v);
+    else node[k] = v;
+  }
+  return node;
+}
+
+function css(obj) {
+  return Object.entries(obj).map(([k, v]) => {
+    const prop = k.replace(/([A-Z])/g, m => "-" + m.toLowerCase());
+    return `${prop}:${v}`;
+  }).join(";");
+}
+
+function onEscKey(e) { if (e.key === "Escape") removePopup(); }
 function onOutsideClick(e) {
-  const popup = document.getElementById("togoid-popup");
-  if (popup && !popup.contains(e.target)) removePopup();
+  const p = document.getElementById("togoid-popup");
+  if (p && !p.contains(e.target)) removePopup();
 }
-
 function removePopup() {
   document.getElementById("togoid-popup")?.remove();
   document.removeEventListener("keydown", onEscKey);

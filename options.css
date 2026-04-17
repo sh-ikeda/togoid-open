@@ -1,0 +1,142 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  color: #1a1a1a;
+  background: #f4f6f8;
+  min-height: 100vh;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 200px;
+  background: #1a5276;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+.logo {
+  padding: 20px 16px 16px;
+  font-weight: 700;
+  font-size: 15px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+.sidebar ul { list-style: none; padding: 8px 0; }
+.nav-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 8px;
+  transition: background 0.1s;
+}
+.nav-item:hover { background: rgba(255,255,255,0.12); }
+.nav-item.active { background: rgba(255,255,255,0.22); font-weight: 600; }
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  padding: 32px 36px;
+  max-width: 760px;
+}
+
+.tab { display: none; }
+.tab.active { display: block; }
+
+h2 { font-size: 18px; margin-bottom: 8px; }
+h3 { font-size: 15px; margin-bottom: 10px; color: #333; }
+p { margin-bottom: 8px; line-height: 1.6; }
+.hint { color: #777; font-size: 13px; }
+
+/* ── DB list ── */
+#db-list { margin: 16px 0; }
+
+.db-card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.db-card-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  gap: 10px;
+  cursor: default;
+}
+.db-card-header input[type=checkbox] { width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+.db-name { font-weight: 600; flex: 1; }
+.db-key  { font-size: 12px; color: #888; font-family: monospace; }
+.db-regex { font-size: 12px; color: #555; font-family: monospace; flex: 1; margin-left: 8px; }
+.badge-custom {
+  font-size: 11px; background: #e8f4fd; color: #1a5276;
+  padding: 1px 7px; border-radius: 10px;
+}
+.btn-delete {
+  background: none; border: 1px solid #e0e0e0; color: #c0392b;
+  padding: 2px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;
+  margin-left: 4px;
+}
+.btn-delete:hover { background: #fde8e8; }
+
+.prefix-list { padding: 0 14px 10px 38px; }
+.prefix-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 4px 0;
+  border-top: 1px solid #f0f0f0;
+}
+.prefix-item:first-child { border-top: none; }
+.prefix-item input[type=checkbox] { width: 14px; height: 14px; cursor: pointer; }
+.prefix-label { font-size: 13px; min-width: 80px; }
+.prefix-uri   { font-size: 12px; color: #555; font-family: monospace; word-break: break-all; }
+
+/* ── Add form ── */
+.add-form {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 16px;
+}
+.form-row { margin-bottom: 10px; }
+.form-row label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; }
+.form-row input, .prefix-row-input input {
+  width: 100%; padding: 6px 10px;
+  border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+}
+.prefix-row-input {
+  display: flex; gap: 8px; margin-bottom: 6px; align-items: center;
+}
+.prefix-row-input .pi-label { width: 120px; flex-shrink: 0; }
+.prefix-row-input .pi-uri   { flex: 1; }
+.btn-icon {
+  background: none; border: none; font-size: 16px;
+  cursor: pointer; color: #c0392b; padding: 0 4px;
+}
+.btn-secondary {
+  font-size: 12px; color: #1a5276; background: none;
+  border: 1px solid #1a5276; padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; margin-bottom: 12px;
+}
+.btn-secondary:hover { background: #eaf2fb; }
+.form-actions { display: flex; align-items: center; gap: 12px; }
+.btn-primary {
+  background: #1a5276; color: #fff; border: none;
+  padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 14px;
+}
+.btn-primary:hover { background: #154360; }
+.inline-btn { display: inline-block; text-decoration: none; padding: 8px 16px; }
+.error-msg { color: #c0392b; font-size: 13px; }
+
+.section-divider { border: none; border-top: 1px solid #ddd; margin: 24px 0; }
+
+code {
+  background: #f0f0f0; padding: 2px 6px; border-radius: 3px;
+  font-family: monospace; font-size: 13px;
+}

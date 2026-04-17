@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>TogoID Open — 設定</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="layout">
+    <nav class="sidebar">
+      <div class="logo">TogoID Open</div>
+      <ul>
+        <li class="nav-item active" data-tab="databases">データベース</li>
+        <li class="nav-item" data-tab="hotkey">ホットキー</li>
+      </ul>
+    </nav>
+    <main class="content">
+
+      <!-- ── Databases tab ── -->
+      <section id="tab-databases" class="tab active">
+        <h2>データベース設定</h2>
+        <p class="hint">チェックを外したデータベース・プレフィックスはポップアップの候補から除外されます。</p>
+
+        <div id="db-list"><!-- populated by JS --></div>
+
+        <div class="section-divider"></div>
+        <h3>データベースを追加</h3>
+        <div class="add-form" id="add-form">
+          <div class="form-row">
+            <label>キー（英数字・アンダースコア）</label>
+            <input type="text" id="new-key" placeholder="my_database">
+          </div>
+          <div class="form-row">
+            <label>表示名</label>
+            <input type="text" id="new-label" placeholder="My Database">
+          </div>
+          <div class="form-row">
+            <label>正規表現（ID パターン）</label>
+            <input type="text" id="new-regex" placeholder="^(PREFIX\d+)$">
+          </div>
+          <div id="new-prefixes">
+            <div class="prefix-row-input">
+              <input type="text" class="pi-label" placeholder="ラベル（例: rdf）">
+              <input type="text" class="pi-uri" placeholder="URI プレフィックス（例: https://example.com/）">
+              <button class="btn-icon remove-prefix" title="削除">×</button>
+            </div>
+          </div>
+          <button class="btn-secondary" id="btn-add-prefix-row">＋ prefix を追加</button>
+          <div class="form-actions">
+            <button class="btn-primary" id="btn-add-db">追加</button>
+            <span id="add-error" class="error-msg"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Hotkey tab ── -->
+      <section id="tab-hotkey" class="tab">
+        <h2>ホットキー設定</h2>
+        <p>Chrome の拡張機能ショートカット設定画面からホットキーを変更できます。</p>
+        <p class="hint">現在のデフォルト: <code>Alt+Shift+O</code></p>
+        <a href="#" id="open-shortcuts" class="btn-primary inline-btn">
+          ショートカット設定を開く（chrome://extensions/shortcuts）
+        </a>
+        <p class="hint" style="margin-top:12px;">
+          ※ リンクをクリックするとショートカット設定ページが新しいタブで開きます。<br>
+          「TogoID Open」の項目で「open-togoid」のキーを変更してください。
+        </p>
+      </section>
+
+    </main>
+  </div>
+  <script src="databases.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
