@@ -27,6 +27,8 @@ const T = {
   noDbFound:      "No databases found.",
   examples:       "Examples",
   selectPrefix:   "Select destination:",
+  more:           "More ▾",
+  less:           "Less ▴",
 };
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -202,28 +204,56 @@ async function showOpenPopup() {
   } else {
     for (const [, { db, items }] of grouped) {
       if (items.length === 1) {
+        // Single prefix: direct open row
         const { prefix, resolvedId } = items[0];
         body.appendChild(rowEl(db.label, prefix.uri + resolvedId, false));
       } else {
+        // Multiple prefixes:
+        //   - Top row: DB label (left) opens first prefix immediately
+        //   - "More ▾" toggle (right) expands the remaining prefixes below
         const section = el("div");
-        const dbBtn = el("div", { style: css({ display: "flex", alignItems: "center", padding: "8px 14px", cursor: "pointer", gap: "8px", userSelect: "none" }) });
-        const arrow = el("span", { style: css({ fontSize: "11px", color: COLORS.brand, transition: "transform 0.15s", flexShrink: "0" }), textContent: "▶" });
-        const dbLabel = el("span", { style: css({ flex: "1" }), textContent: db.label });
-        const cnt = el("span", { style: css({ fontSize: "11px", color: COLORS.brandDark, background: COLORS.brandLight, padding: "1px 6px", borderRadius: "10px" }), textContent: `${items.length}` });
-        dbBtn.append(arrow, dbLabel, cnt);
-        dbBtn.addEventListener("mouseover", () => { dbBtn.style.background = "#f0fbfc"; });
-        dbBtn.addEventListener("mouseout",  () => { dbBtn.style.background = ""; });
+        const first = items[0];
+        const rest  = items.slice(1);
+
+        // Top row
+        const topRow = el("div", { style: css({ display: "flex", alignItems: "center", padding: "8px 14px", gap: "8px" }) });
+        const icon = el("span", { style: css({ fontSize: "12px", color: COLORS.brand, flexShrink: "0" }), textContent: "↗" });
+        const dbLabelEl = el("span", { style: css({ flex: "1", cursor: "pointer" }), textContent: db.label });
+        const firstUrlEl = el("span", {
+          style: css({ fontSize: "11px", color: "#aaa", fontFamily: "monospace", maxWidth: "120px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", cursor: "pointer" }),
+          textContent: first.prefix.uri + first.resolvedId
+        });
+        const moreBtn = el("span", {
+          style: css({ fontSize: "11px", color: COLORS.brandDark, background: COLORS.brandLight, padding: "1px 8px", borderRadius: "10px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: "0", userSelect: "none" }),
+          textContent: T.more
+        });
+
+        // Clicking DB label or URL part opens first prefix
+        const openFirst = () => { window.open(first.prefix.uri + first.resolvedId, "_blank", "noopener"); removePopup(); };
+        topRow.append(icon, dbLabelEl, firstUrlEl, moreBtn);
+        topRow.addEventListener("mouseover", () => { topRow.style.background = COLORS.hoverBg; });
+        topRow.addEventListener("mouseout",  () => { topRow.style.background = ""; });
+        // Click on row body → open first; click on moreBtn → toggle
+        topRow.addEventListener("click", (e) => {
+          if (e.target === moreBtn || moreBtn.contains(e.target)) return;
+          openFirst();
+        });
+
+        // Remaining prefixes (hidden until More is clicked)
         const subList = el("div", { style: css({ display: "none" }) });
-        for (const { prefix, resolvedId } of items) {
+        for (const { prefix, resolvedId } of rest) {
           subList.appendChild(rowEl(prefix.label, prefix.uri + resolvedId, true));
         }
+
         let open = false;
-        dbBtn.addEventListener("click", () => {
+        moreBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
           open = !open;
-          arrow.style.transform = open ? "rotate(90deg)" : "";
+          moreBtn.textContent = open ? T.less : T.more;
           subList.style.display = open ? "block" : "none";
         });
-        section.append(dbBtn, subList);
+
+        section.append(topRow, subList);
         body.appendChild(section);
       }
     }

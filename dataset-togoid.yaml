@@ -1,0 +1,6 @@
+togoid:
+  label: TogoID
+  regex: '^(?<id>.*)$'
+  prefix:
+    - label: default
+      uri: 'https://togoid.dbcls.jp/?ids='

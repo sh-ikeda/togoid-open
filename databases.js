@@ -75,12 +75,8 @@ function unquote(s) {
 
 let _defaultDbs = null;
 
-async function loadDatabases() {
-  if (_defaultDbs) return _defaultDbs;
-  const url = chrome.runtime.getURL("dataset.yaml");
-  const text = await fetch(url).then(r => r.text());
-  const parsed = parseDatasetYaml(text);
-  _defaultDbs = Object.entries(parsed).map(([key, entry]) => ({
+function entryToDb(key, entry) {
+  return {
     key,
     label: entry.label,
     regex: new RegExp(entry.regex),
@@ -88,7 +84,18 @@ async function loadDatabases() {
     prefix: Array.isArray(entry.prefix) ? entry.prefix : [],
     examples: Array.isArray(entry.examples) ? entry.examples : [],
     isCustom: false
-  }));
+  };
+}
+
+async function loadDatabases() {
+  if (_defaultDbs) return _defaultDbs;
+  // Load both dataset files: dataset.yaml (external project) + dataset-togoid.yaml (TogoID-specific)
+  const [text1, text2] = await Promise.all([
+    fetch(chrome.runtime.getURL("dataset.yaml")).then(r => r.text()),
+    fetch(chrome.runtime.getURL("dataset-togoid.yaml")).then(r => r.text()),
+  ]);
+  const merged = { ...parseDatasetYaml(text1), ...parseDatasetYaml(text2) };
+  _defaultDbs = Object.entries(merged).map(([key, entry]) => entryToDb(key, entry));
   return _defaultDbs;
 }
 
