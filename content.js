@@ -141,6 +141,32 @@ function placePopup(popup, anchorRect) {
   }, 0);
 }
 
+// Place browser popup: fixed width, positioned in upper area, scrollable body
+function placeBrowserPopup(popup) {
+  document.body.appendChild(popup);
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const M = 12;
+  const pw = popup.offsetWidth;
+
+  // Cap popup height to 70% of viewport; body scrolls inside
+  const maxH = Math.floor(vh * 0.70);
+  const bodyEl = popup.querySelector("div[style*='overflow-y']");
+  if (bodyEl) bodyEl.style.maxHeight = `${maxH - 120}px`; // subtract header+toolbar+footer
+
+  const ph = Math.min(popup.offsetHeight, maxH);
+  // Place at 12% from top (upper area, not center)
+  const top  = Math.max(M, Math.floor(vh * 0.12));
+  const left = Math.max(M, Math.min(Math.floor((vw - pw) / 2), vw - pw - M));
+
+  popup.style.top  = `${top}px`;
+  popup.style.left = `${left}px`;
+
+  setTimeout(() => {
+    document.addEventListener("keydown", onEscKey);
+    document.addEventListener("mousedown", onOutsideClick);
+  }, 0);
+}
+
 function msgEl(text) {
   return el("div", { style: css({ padding: "12px 14px", color: COLORS.sub }), textContent: text });
 }
@@ -322,8 +348,19 @@ async function showBrowserPopup() {
     body.innerHTML = "";
     badge.textContent = db.label;
 
-    // Back button row
-    const backRow = el("div", { style: css({ padding: "6px 10px", borderBottom: `1px solid ${COLORS.brandLight}` }) });
+    // Get active prefixes for this DB (respecting disabled flags)
+    const storage = await chrome.storage.sync.get("disabled");
+    const disabled = storage.disabled || {};
+    const activePrefixes = (db.prefix || []).filter(p => !disabled[`${db.key}__${p.label}`]);
+
+    // ── Toolbar: Back button + prefix selector dropdown ──
+    const toolbar = el("div", {
+      style: css({
+        padding: "6px 10px", borderBottom: `1px solid ${COLORS.brandLight}`,
+        display: "flex", alignItems: "center", gap: "8px", flexShrink: "0"
+      })
+    });
+
     const backBtn = el("button", {
       style: css({ background: "none", border: "none", color: COLORS.brandDark, cursor: "pointer", fontSize: "13px", padding: "2px 6px", borderRadius: "4px" }),
       textContent: T.back
@@ -331,8 +368,33 @@ async function showBrowserPopup() {
     backBtn.addEventListener("mouseover", () => { backBtn.style.background = COLORS.brandLight; });
     backBtn.addEventListener("mouseout",  () => { backBtn.style.background = ""; });
     backBtn.addEventListener("click", showDbSearch);
-    backRow.appendChild(backBtn);
-    body.appendChild(backRow);
+    toolbar.appendChild(backBtn);
+
+    // Prefix selector (only shown when there are multiple active prefixes)
+    let selectedPrefixIndex = 0;
+    if (activePrefixes.length > 1) {
+      const sep = el("span", { style: css({ color: COLORS.brandMid, fontSize: "12px" }), textContent: "|" });
+      toolbar.appendChild(sep);
+
+      const prefixLabel = el("span", { style: css({ fontSize: "12px", color: COLORS.sub }), textContent: T.selectPrefix });
+      toolbar.appendChild(prefixLabel);
+
+      const select = el("select", {
+        style: css({
+          fontSize: "12px", border: `1px solid ${COLORS.brandMid}`, borderRadius: "4px",
+          padding: "2px 6px", background: COLORS.white, color: COLORS.brandDark,
+          cursor: "pointer", outline: "none"
+        })
+      });
+      activePrefixes.forEach((p, i) => {
+        const opt = el("option", { value: String(i), textContent: p.label });
+        select.appendChild(opt);
+      });
+      select.addEventListener("change", () => { selectedPrefixIndex = parseInt(select.value); });
+      toolbar.appendChild(select);
+    }
+
+    body.appendChild(toolbar);
 
     const examples = db.examples || [];
     if (examples.length === 0) {
@@ -340,23 +402,23 @@ async function showBrowserPopup() {
       return;
     }
 
-    // Get active prefixes for this DB (respecting disabled flags)
-    const storage = await chrome.storage.sync.get("disabled");
-    const disabled = storage.disabled || {};
-    const activePrefixes = (db.prefix || []).filter(p => !disabled[`${db.key}__${p.label}`]);
-
     const listWrap = el("div", { style: css({ padding: "4px 0" }) });
     body.appendChild(listWrap);
 
+    // Helper: open URL using currently selected prefix
+    function openWithSelectedPrefix(id) {
+      if (activePrefixes.length === 0) return;
+      const match = id.match(db.regex);
+      const resolvedId = match ? extractId(match) : id;
+      window.open(activePrefixes[selectedPrefixIndex].uri + resolvedId, "_blank", "noopener");
+    }
+
     if (examples.length === 1) {
-      // Single series: flat list
       for (const id of examples[0]) {
-        listWrap.appendChild(exampleRow(id, db, activePrefixes, false));
+        listWrap.appendChild(exampleRow(id, false, openWithSelectedPrefix));
       }
     } else {
-      // Multiple series: accordion, header = first ID of each series
-      for (let si = 0; si < examples.length; si++) {
-        const series = examples[si];
+      for (const series of examples) {
         if (series.length === 0) continue;
         const section = el("div");
 
@@ -378,7 +440,7 @@ async function showBrowserPopup() {
 
         const subList = el("div", { style: css({ display: "none" }) });
         for (const id of series) {
-          subList.appendChild(exampleRow(id, db, activePrefixes, true));
+          subList.appendChild(exampleRow(id, true, openWithSelectedPrefix));
         }
 
         let open = false;
@@ -393,8 +455,9 @@ async function showBrowserPopup() {
     }
   }
 
-  // ── Example row: id + copy button + open button ──
-  function exampleRow(id, db, activePrefixes, isIndented) {
+  // ── Example row: id + copy + open ──
+  // openFn(id): called when Open URL is clicked; uses currently selected prefix
+  function exampleRow(id, isIndented, openFn) {
     const row = el("div", {
       style: css({
         display: "flex", alignItems: "center",
@@ -408,7 +471,6 @@ async function showBrowserPopup() {
       textContent: id
     });
 
-    // Copy button
     const copyBtn = el("button", {
       style: css({ fontSize: "11px", padding: "2px 8px", border: `1px solid ${COLORS.brandMid}`, borderRadius: "4px", background: COLORS.white, color: COLORS.brandDark, cursor: "pointer", whiteSpace: "nowrap" }),
       textContent: T.copy
@@ -420,79 +482,22 @@ async function showBrowserPopup() {
       setTimeout(() => { copyBtn.textContent = T.copy; }, 1500);
     });
 
-    // Open URL button
     const openBtn = el("button", {
       style: css({ fontSize: "11px", padding: "2px 8px", border: `1px solid ${COLORS.brand}`, borderRadius: "4px", background: COLORS.brandLight, color: COLORS.brandDark, cursor: "pointer", whiteSpace: "nowrap" }),
       textContent: T.openUrl
     });
-    openBtn.addEventListener("click", async (e) => {
+    openBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      if (activePrefixes.length === 0) return;
-
-      // Compute resolvedId via regex
-      const match = id.match(db.regex);
-      const resolvedId = match ? extractId(match) : id;
-
-      if (activePrefixes.length === 1) {
-        window.open(activePrefixes[0].uri + resolvedId, "_blank", "noopener");
-      } else {
-        // Show inline prefix chooser overlay inside the row
-        showPrefixChooser(row, id, resolvedId, activePrefixes);
-      }
+      openFn(id);
     });
 
     row.append(idEl, copyBtn, openBtn);
     return row;
   }
 
-  // Inline prefix chooser (appears below the row)
-  function showPrefixChooser(anchorRow, id, resolvedId, prefixes) {
-    // Remove existing chooser if any
-    document.getElementById("togoid-prefix-chooser")?.remove();
-
-    const chooser = el("div", {
-      id: "togoid-prefix-chooser",
-      style: css({
-        position: "absolute", zIndex: "10",
-        background: COLORS.white, border: `1px solid ${COLORS.brand}`,
-        borderRadius: "6px", boxShadow: "0 4px 12px rgba(26,179,200,0.18)",
-        padding: "4px 0", minWidth: "200px"
-      })
-    });
-
-    const label = el("div", { style: css({ padding: "5px 12px 3px", fontSize: "11px", color: "#aaa" }), textContent: T.selectPrefix });
-    chooser.appendChild(label);
-
-    for (const p of prefixes) {
-      const item = el("div", {
-        style: css({ padding: "6px 12px", cursor: "pointer", fontSize: "13px" }),
-        textContent: p.label
-      });
-      item.addEventListener("mouseover", () => { item.style.background = COLORS.hoverBg; });
-      item.addEventListener("mouseout",  () => { item.style.background = ""; });
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        window.open(p.uri + resolvedId, "_blank", "noopener");
-        chooser.remove();
-      });
-      chooser.appendChild(item);
-    }
-
-    // Position relative to the popup body
-    anchorRow.style.position = "relative";
-    anchorRow.appendChild(chooser);
-
-    // Dismiss on outside click
-    setTimeout(() => {
-      const dismiss = (e) => {
-        if (!chooser.contains(e.target)) { chooser.remove(); document.removeEventListener("mousedown", dismiss); }
-      };
-      document.addEventListener("mousedown", dismiss);
-    }, 0);
-  }
-
   showDbSearch();
-  placePopup(popup, null);
+  // Position: upper-center (not vertically centered — keeps popup in upper portion)
+  placeBrowserPopup(popup);
 }
 
 // ── extractId (also needed in content.js for open-URL button) ─────────────────
