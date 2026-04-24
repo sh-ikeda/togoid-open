@@ -89,10 +89,10 @@ function entryToDb(key, entry) {
 
 async function loadDatabases() {
   if (_defaultDbs) return _defaultDbs;
-  // Load both dataset files: dataset.yaml (external project) + dataset-togoid.yaml (TogoID-specific)
+  // Load both dataset files: dataset.yaml (external project) + dataset-local.yaml (TogoID-specific)
   const [text1, text2] = await Promise.all([
     fetch(chrome.runtime.getURL("dataset.yaml")).then(r => r.text()),
-    fetch(chrome.runtime.getURL("dataset-togoid.yaml")).then(r => r.text()),
+    fetch(chrome.runtime.getURL("dataset-local.yaml")).then(r => r.text()),
   ]);
   const merged = { ...parseDatasetYaml(text1), ...parseDatasetYaml(text2) };
   _defaultDbs = Object.entries(merged).map(([key, entry]) => entryToDb(key, entry));

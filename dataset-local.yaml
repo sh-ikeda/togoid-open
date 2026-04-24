@@ -1,0 +1,13 @@
+togoid:
+  label: TogoID
+  regex: '^(?<id>.*)$'
+  prefix:
+    - label: default
+      uri: 'https://togoid.dbcls.jp/?ids='
+
+ols:
+  label: EBI OLS
+  regex: '^(?<id>.*)$'
+  prefix:
+    - label: default
+      uri: 'https://www.ebi.ac.uk/ols4/search?q='

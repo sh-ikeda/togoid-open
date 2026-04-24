@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TogoID Open",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Open life science database records by selecting their ID on any page.",
   "permissions": [
     "tabs",
@@ -34,7 +34,7 @@
     {
       "resources": [
         "dataset.yaml",
-        "dataset-togoid.yaml"
+        "dataset-local.yaml"
       ],
       "matches": [
         "<all_urls>"
@@ -42,12 +42,19 @@
     }
   ],
   "commands": {
-    "open-togoid": {
+    "open-selected": {
       "suggested_key": {
         "default": "Alt+Shift+O",
         "mac": "Alt+Shift+O"
       },
-      "description": "Open TogoID popup for selected text"
+      "description": "Open selected: open database record for selected ID"
+    },
+    "show-examples": {
+      "suggested_key": {
+        "default": "Alt+Shift+I",
+        "mac": "Alt+Shift+I"
+      },
+      "description": "Show examples: browse database example IDs"
     }
   },
   "icons": {

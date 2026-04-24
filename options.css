@@ -279,3 +279,15 @@ code {
 .lang-btn:hover  { background: rgba(26,179,200,0.15); }
 .lang-btn.active { background: var(--brand); color: #fff; border-color: var(--brand); }
 .lang-sep { color: var(--brand-mid); font-size: 12px; }
+
+/* ── Hotkey table ── */
+.hotkey-table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 13px;
+}
+.hotkey-table td {
+  padding: 5px 16px 5px 0;
+  vertical-align: middle;
+}
+.hotkey-table td:first-child { white-space: nowrap; }

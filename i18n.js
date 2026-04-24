@@ -41,9 +41,9 @@ const STRINGS = {
     // Hotkey tab
     hotkeyTabTitle:   "ホットキー設定",
     hotkeyDesc:       "Chrome の拡張機能ショートカット設定画面からホットキーを変更できます。",
-    hotkeyDefault:    "現在のデフォルト:",
+    hotkeyDefault:    "デフォルト:",
     btnOpenShortcuts: "ショートカット設定を開く",
-    hotkeyNote:       "chrome://extensions/shortcuts が新しいタブで開きます。「TogoID Open」→「open-togoid」のキーを変更してください。",
+    hotkeyNote:       "chrome://extensions/shortcuts が新しいタブで開きます。'open-selected'（Alt+Shift+O）と 'show-examples'（Alt+Shift+I）をそれぞれ変更できます。",
     // Modal
     modalTitle:       (label) => `編集: ${label}`,
     modalSave:        "保存",
@@ -91,9 +91,9 @@ const STRINGS = {
     errKeyDuplicate:  (key) => `Key "${key}" is already in use.`,
     hotkeyTabTitle:   "Hotkey Settings",
     hotkeyDesc:       "You can change the hotkey in Chrome's extension shortcuts settings.",
-    hotkeyDefault:    "Current default:",
+    hotkeyDefault:    "Defaults:",
     btnOpenShortcuts: "Open Shortcut Settings",
-    hotkeyNote:       "Opens chrome://extensions/shortcuts in a new tab. Find 'TogoID Open' → 'open-togoid' and set your preferred key.",
+    hotkeyNote:       "Opens chrome://extensions/shortcuts in a new tab. You can change 'open-selected' (default: Alt+Shift+O) and 'show-examples' (default: Alt+Shift+I) independently.",
     modalTitle:       (label) => `Edit: ${label}`,
     modalSave:        "Save",
     modalCancel:      "Cancel",
