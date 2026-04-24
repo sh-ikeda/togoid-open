@@ -43,7 +43,7 @@ const STRINGS = {
     hotkeyDesc:       "Chrome の拡張機能ショートカット設定画面からホットキーを変更できます。",
     hotkeyDefault:    "デフォルト:",
     btnOpenShortcuts: "ショートカット設定を開く",
-    hotkeyNote:       "chrome://extensions/shortcuts が新しいタブで開きます。'open-selected'（Alt+Shift+O）と 'show-examples'（Alt+Shift+I）をそれぞれ変更できます。",
+    hotkeyNote:       "chrome://extensions/shortcuts が新しいタブで開きます。Alt+Shift+O（TogoID Open）のキーを変更できます。",
     // Modal
     modalTitle:       (label) => `編集: ${label}`,
     modalSave:        "保存",
@@ -93,7 +93,7 @@ const STRINGS = {
     hotkeyDesc:       "You can change the hotkey in Chrome's extension shortcuts settings.",
     hotkeyDefault:    "Defaults:",
     btnOpenShortcuts: "Open Shortcut Settings",
-    hotkeyNote:       "Opens chrome://extensions/shortcuts in a new tab. You can change 'open-selected' (default: Alt+Shift+O) and 'show-examples' (default: Alt+Shift+I) independently.",
+    hotkeyNote:       "Opens chrome://extensions/shortcuts in a new tab. You can change the Alt+Shift+O hotkey for TogoID Open.",
     modalTitle:       (label) => `Edit: ${label}`,
     modalSave:        "Save",
     modalCancel:      "Cancel",
