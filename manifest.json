@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TogoID Open",
-  "version": "1.9.0",
-  "description": "Open life science database records by selecting their ID on any page.",
+  "version": "1.10.0",
+  "description": "Open life science database records by ID, and browse example IDs across databases \u2014 all from a single hotkey.",
   "permissions": [
     "tabs",
     "scripting",
